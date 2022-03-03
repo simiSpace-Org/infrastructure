@@ -16,15 +16,30 @@ export AWS_REGION=us-east-1
 
 # AWS : Networking
 
-aws cloudformation create-stack --stack-name demo1-vpc --template-body file://csye6225-infra.yml
-
 # AWS CLI stack commands
-#create vpc using dynamic vpccidrblock
-aws cloudformation create-stack --stack-name demo1-vpc1 --template-body file://csye6225-infra.yml --parameters file://parameter.json
+## create stack
+aws cloudformation create-stack --stack-name demo1-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json
 
-#update stack 
-aws cloudformation update-stack --stack-name demo1-vpc1 --template-body file://csye6225-infra.yml --parameters file://parameter.json
+## update stack 
+aws cloudformation update-stack --stack-name demo1-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json
 
-#delete-stack
-aws cloudformation delete-stack --stack-name demo1-vpc1 
+## delete-stack
+aws cloudformation delete-stack --stack-name demo1-vpc737 
+
+# Packer Commands
+
+export PACKER_LOG=1
+
+```
+//go to folder location of packer and run the following commands
+cd Desktop/demoadd3/infrastructure/packer 
+packer build -var-file='dev_vars.json' ami.json
+
+# Validate packer
+    ./packer validate ami.json
+
+```
+# To go into EC2 
+ssh -i "simis_cloud.pem" ec2-user@ec2-44-199-234-165.compute-1.amazonaws.com
+
 
