@@ -5,12 +5,12 @@ Parameters:
   VpcCidrBlock:
     Description: "CIDR block for VPC"
     Type: String
-    Default: "10.0.0.0/16"
+    Default: "172.31.0.0/16"
   # 3 ref to Subnets
   PublicSubnet1CIDR:
     Description: "Subnet 1 CIDR block"
     Type: String
-    Default: "10.0.0.0/24"
+    Default: "172.31.32.0/20"
   PublicSubnet2CIDR:
     Description: "Subnet 1 CIDR block"
     Type: String
@@ -18,8 +18,15 @@ Parameters:
   PublicSubnet3CIDR:
     Description: "Subnet 1 CIDR block"
     Type: String
-    Default: "10.0.2.0/24"   
-
+    Default: "10.0.2.0/24"
+  ami:
+    Description: "ami ID"
+    Type: String
+    Default: "ami-0cd10560d02b09aae" 
+  subnetid:
+    Description: "Subnet ID"
+    Type: String     
+       
 Resources:
   myVPC:
     Type: AWS::EC2::VPC
@@ -110,7 +117,80 @@ Resources:
     Properties:
       RouteTableId: !Ref myPublicRouteTable
       SubnetId: !Ref myPublicSubnet3       
+#create Security Groups
+  ApplicationSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties: 
+      GroupDescription: Allow http to client host
+      GroupName: applicationsecuritygroup
+      SecurityGroupEgress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0   
+      SecurityGroupIngress: 
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 3000
+          ToPort: 3000
+          CidrIp: 0.0.0.0/0
+      Tags: 
+        - Key: Name
+          Value: !Ref AWS::StackName 
+      VpcId: !Ref myVPC
+#Create EC2 Instance
+  MyEC2Instance: 
+    Type: AWS::EC2::Instance
+    Properties: 
+      ImageId: !Ref ami
+      KeyName: "simis_cloud"
+      InstanceType: "t2.micro"
+      Tags:
+        - Key: Name
+          Value: "Simi_AMI"
+      BlockDeviceMappings: 
+      - DeviceName: "/dev/sdm"
+        Ebs: 
+          VolumeType: "io1"
+          Iops: "200"
+          DeleteOnTermination: "false"
+          VolumeSize: "20"
+      - DeviceName: "/dev/sdk"
+        NoDevice: {}
+      SecurityGroupIds:
+          - !Ref ApplicationSecurityGroup
+      SubnetId: !Ref subnetid
+
+
+              
+        
+        
   
+      
 
-            
+      
 
+              
