@@ -425,7 +425,7 @@ Resources:
             export DB_HOSTNAME=${HostName}
             export S3_BUCKET=${S3Bucket}
             export PORT=${PortNo}
-            export AWS_REGION=${region}
+            export AWS_REGION=${BucketRegion}
             sudo systemctl start nodeapp.service
             EOF
           - {
