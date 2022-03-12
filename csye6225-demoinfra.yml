@@ -435,7 +435,6 @@ Resources:
             export AWS_BUCKET_NAME=${S3Bucket}
             export PORT=${PortNo}
             export AWS_BUCKET_REGION=${BucketRegion}
-            sudo systemctl start nodeapp.service
             EOF
           - {
               DatabaseName: !Ref DatabaseName,
