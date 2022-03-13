@@ -436,6 +436,10 @@ Resources:
             export PORT=${PortNo}
             export AWS_BUCKET_REGION=${BucketRegion}
             EOF
+            cd /etc/systemd/system
+            sudo systemctl start nodeapp.service
+            sudo systemctl status nodeapp.service
+            sudo systemctl enable nodeapp.service
           - {
               DatabaseName: !Ref DatabaseName,
               DatabaseUser: !Ref DatabaseUser,
