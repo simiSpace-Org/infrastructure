@@ -445,6 +445,8 @@ Resources:
             AWS_ACCESS_KEY=${awsaccesskey},
             AWS_SECRET_KEY=${awssecretkey}
             EOF
+            source /etc/profile
+            systemctl start nodeapp.service
           - {
               DatabaseName: !Ref DatabaseName,
               DatabaseUser: !Ref DatabaseUser,
