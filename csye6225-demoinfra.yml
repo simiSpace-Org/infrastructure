@@ -413,7 +413,7 @@ Resources:
     Properties:
       IamInstanceProfile: !Ref RoleInstanceProfile
       ImageId: !Ref ami
-      KeyName: "simis_cloud"
+      KeyName: "demo_keypair"
       InstanceType: "t2.micro"
       Tags:
         - Key: Name
@@ -448,8 +448,6 @@ Resources:
             AWS_BUCKET_NAME=${S3Bucket}
             PORT=${PortNo}
             AWS_BUCKET_REGION=${BucketRegion}
-            AWS_ACCESS_KEY=${awsaccesskey},
-            AWS_SECRET_KEY=${awssecretkey}
             EOF
             source /etc/profile
             sudo systemctl enable nodeapp
