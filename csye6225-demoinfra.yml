@@ -5,7 +5,7 @@ Parameters:
   VpcCidrBlock:
     Description: "CIDR block for VPC"
     Type: String
-    Default: "172.31.0.0/16"
+    Default: "10.0.0.0/16"
   # 3 ref to Subnets
   PublicSubnet1CIDR:
     Description: "Public Subnet 1 CIDR block"
@@ -35,11 +35,11 @@ Parameters:
   ami:
     Description: "ami ID"
     Type: String
-    Default: "ami-0c3b3473a1e67c943"
+    Default: "ami-014c95e180435ea76"
   bucketLastName:
     Description: "bucket name"
     Type: String
-    Default: "dev.simiicodes.me"
+    Default: "demo.simiicodes.me"
   BucketRegion:
     Description: "aws region"
     Type: String
@@ -47,11 +47,11 @@ Parameters:
   awsaccesskey:
     Description: "aws access key"
     Type: String
-    Default: "AKIA5UOO6N7FNACMPCM5"
+    Default: "AKIA5J3IFYVK5ZF4MPMH"
   awssecretkey:
     Description: "aws secret key"
     Type: String
-    Default: "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"
+    Default: "u77kZ2RFwM5Dp+KshXXZdJEA54PR94mNP4/s3U+/"
   DatabaseUser:
     Description: "db username"
     Type: String
@@ -71,11 +71,27 @@ Parameters:
   IAMRoleName:
     Description: "IAMRoleName"
     Type: String
-    Default: "EC2-CSYE6225" 
+    Default: "EC2-CSYE6225"
+  devkeypair:
+    Description: "dev keypair"
+    Type: String
+    Default: "simis_cloud"
+  demokeypair:
+    Description: "demokeypair"
+    Type: String
+    Default: "demo_keypair"     
   IAMPolicyName:  
     Description: "IAMPolicyName"
     Type: String
     Default: "WebAppS3" 
+  domainName:
+    Description: "domainName"
+    Type: String
+    Default: "dev.simiicodes.me"
+  hostedZoneId:
+    Description: "hostedZoneId"
+    Type: String
+    Default: "Z08520651XJMY4OXUZ4FP"    
 
 Resources:
   myVPC:
@@ -253,10 +269,10 @@ Resources:
           ToPort: 5432
           CidrIp: 0.0.0.0/0  
       SecurityGroupIngress:
-        - IpProtocol: tcp
-          FromPort: 80
-          ToPort: 80
-          CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+        #   FromPort: 80
+        #   ToPort: 80
+        #   CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 5432
           ToPort: 5432
@@ -265,14 +281,14 @@ Resources:
           FromPort: 22
           ToPort: 22
           CidrIp: 0.0.0.0/0
-        - IpProtocol: tcp
-          FromPort: 443
-          ToPort: 443
-          CidrIp: 0.0.0.0/0
+        # - IpProtocol: tcp
+        #   FromPort: 443
+        #   ToPort: 443
+        #   CidrIp: 0.0.0.0/0
         - IpProtocol: tcp
           FromPort: 3000
           ToPort: 3000
-          CidrIp: 0.0.0.0/0
+          SourceSecurityGroupId: !Ref loadbalancerSecurityGroup
       Tags:
         - Key: Name
           Value: !Ref AWS::StackName
@@ -292,13 +308,29 @@ Resources:
           ToPort: 5432
           SourceSecurityGroupId: !Ref ApplicationSecurityGroup
       VpcId: !Ref myVPC
+#Load Balancer Security Group 
+  loadbalancerSecurityGroup:
+    Type: 'AWS::EC2::SecurityGroup'
+    Properties:
+      GroupName: loadbalancer
+      GroupDescription: Load Balancer SecurityGroup
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0       
 
 #Create S3 Bucket
   S3Bucket:
     Type: AWS::S3::Bucket
     DeletionPolicy: Delete
     Properties:
-      BucketName: !Sub "${AWS::StackName}.dev.simiicodes.me"
+      BucketName: !Sub "${AWS::StackName}.demo.simiicodes.me"
       AccessControl: Private
       PublicAccessBlockConfiguration:
         BlockPublicAcls: true
@@ -358,7 +390,6 @@ Resources:
       PubliclyAccessible: false
       DBName: !Ref DatabaseName
       Port: "5432"
-
 # Create IAM Role
   CreateIAMRole:
     Type: AWS::IAM::Role
@@ -408,32 +439,142 @@ Resources:
         - !Ref CreateIAMRole
 
 #Create EC2 Instance
-  MyEC2Instance:
-    Type: AWS::EC2::Instance
+  # MyEC2Instance1:
+  #   Type: AWS::EC2::Instance
+  #   Properties:
+  #     IamInstanceProfile: !Ref RoleInstanceProfile
+  #     ImageId: !Ref ami
+  #     KeyName: "demo_keypair"
+  #     InstanceType: "t2.micro"
+  #     Tags:
+  #       - Key: Name
+  #         Value: "Simi_AMI"
+  #     BlockDeviceMappings:
+  #       - DeviceName: "/dev/sdm"
+  #         Ebs:
+  #           VolumeType: "io1"
+  #           Iops: "200"
+  #           DeleteOnTermination: "false"
+  #           VolumeSize: "20"
+  #       - DeviceName: "/dev/sdk"
+  #         NoDevice: {}
+  #     SecurityGroupIds:
+  #       - !Ref ApplicationSecurityGroup
+  #     SubnetId: !Ref myPublicSubnet1
+  #     UserData:
+  #       Fn::Base64: !Sub
+  #         - |
+  #           #!/bin/bash
+  #           sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+  #           cd /var/lib/cloud/scripts/per-boot/
+  #           touch reloadenv.sh
+  #           cat > /var/lib/cloud/scripts/per-boot/reloadenv.sh << 'EOF'
+  #           sudo pm2 reload all --update-env
+  #           EOF
+  #           cat > /etc/environment << 'EOF'
+  #           DB_USERNAME=${DatabaseUser}
+  #           DB_NAME=${DatabaseName}
+  #           DB_PASSWORD=${DatabasePassword}
+  #           DB_HOSTNAME=${HostName}
+  #           AWS_BUCKET_NAME=${S3Bucket}
+  #           PORT=${PortNo}
+  #           AWS_BUCKET_REGION=${BucketRegion}
+  #           AWS_ACCESS_KEY=${awsaccesskey},
+  #           AWS_SECRET_KEY=${awssecretkey}
+  #           EOF
+  #           source /etc/profile
+  #           sudo systemctl enable nodeapp
+  #           sudo systemctl start nodeapp
+  #           sudo pm2 reload all --update-env
+  #         - {
+  #             DatabaseName: !Ref DatabaseName,
+  #             DatabaseUser: !Ref DatabaseUser,
+  #             DatabasePassword: !Ref DatabasePassword,
+  #             AWS_BUCKET_NAME: !Ref S3Bucket,
+  #             HostName: !GetAtt myRdsInstance.Endpoint.Address,
+  #             PortNo: !Ref PostGresPortNo,
+  #             AWS_BUCKET_REGION: !Ref BucketRegion,
+  #           }
+  
+#Load Balancers 
+  loadBalancer:
+    Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
     Properties:
-      IamInstanceProfile: !Ref RoleInstanceProfile
-      ImageId: !Ref ami
-      KeyName: "simis_cloud"
-      InstanceType: "t2.micro"
+      Name: !Sub ${AWS::StackName}-load-balancer
+      Type: application
+      IpAddressType: ipv4
+      Scheme: internet-facing
+      SecurityGroups:
+        - !Ref loadbalancerSecurityGroup
+      Subnets:
+        - !Ref myPublicSubnet1
+        - !Ref myPublicSubnet2
+        - !Ref myPublicSubnet3
       Tags:
         - Key: Name
-          Value: "Simi_AMI"
-      BlockDeviceMappings:
-        - DeviceName: "/dev/sdm"
-          Ebs:
-            VolumeType: "io1"
-            Iops: "200"
-            DeleteOnTermination: "false"
-            VolumeSize: "20"
-        - DeviceName: "/dev/sdk"
-          NoDevice: {}
-      SecurityGroupIds:
+          Value: !Sub ${AWS::StackName}-load-balancer
+
+#Target group for load balancing:          
+  loadBalancerTargetGroup:
+    Type: 'AWS::ElasticLoadBalancingV2::TargetGroup'
+    Properties:
+      HealthCheckIntervalSeconds: 90
+      HealthCheckPath: '/healthz'
+      HealthCheckPort: 3000
+      HealthCheckProtocol: 'HTTP'
+      HealthCheckTimeoutSeconds: 60
+      HealthyThresholdCount: 2
+      IpAddressType: ipv4      
+      Name: !Sub '${AWS::StackName}-lb-TargetGroup'
+      TargetType: instance
+      Port: 3000
+      Protocol: HTTP
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-lb-TargetGroup'         
+      UnhealthyThresholdCount: 2
+      VpcId: !Ref myVPC
+
+#request listeners        
+  loadBalancerListener:
+    Type: 'AWS::ElasticLoadBalancingV2::Listener'
+    Properties:
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref loadBalancerTargetGroup
+      LoadBalancerArn: !Ref loadBalancer
+      Port: 80
+      Protocol: HTTP
+#creating the Launch Configuration:
+  LaunchConfiguration:
+    Type: 'AWS::AutoScaling::LaunchConfiguration'
+    Properties:
+      LaunchConfigurationName: asg_launch_config
+      PlacementTenancy: default
+      InstanceType: t2.micro
+      AssociatePublicIpAddress: true
+      IamInstanceProfile: !Ref RoleInstanceProfile
+      ImageId: !Ref ami
+      SecurityGroups:
         - !Ref ApplicationSecurityGroup
-      SubnetId: !Ref myPublicSubnet1
+      KeyName: !Ref devkeypair
+      BlockDeviceMappings:
+        - DeviceName: /dev/xvda
+          Ebs:
+            VolumeType: gp2
+            DeleteOnTermination: true
+            VolumeSize: '20'
+      EbsOptimized: false
       UserData:
         Fn::Base64: !Sub
           - |
             #!/bin/bash
+            sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+            cd /var/lib/cloud/scripts/per-boot/
+            touch reloadenv.sh
+            cat > /var/lib/cloud/scripts/per-boot/reloadenv.sh << 'EOF'
+            sudo pm2 reload all --update-env
+            EOF
             cat > /etc/environment << 'EOF'
             DB_USERNAME=${DatabaseUser}
             DB_NAME=${DatabaseName}
@@ -442,9 +583,11 @@ Resources:
             AWS_BUCKET_NAME=${S3Bucket}
             PORT=${PortNo}
             AWS_BUCKET_REGION=${BucketRegion}
-            AWS_ACCESS_KEY=${awsaccesskey},
-            AWS_SECRET_KEY=${awssecretkey}
             EOF
+            source /etc/profile
+            sudo systemctl enable nodeapp
+            sudo systemctl start nodeapp
+            sudo pm2 reload all --update-env
           - {
               DatabaseName: !Ref DatabaseName,
               DatabaseUser: !Ref DatabaseUser,
@@ -454,3 +597,99 @@ Resources:
               PortNo: !Ref PostGresPortNo,
               AWS_BUCKET_REGION: !Ref BucketRegion,
             }
+#Auto Scaling 
+  autoScalingGroup:
+    Type: 'AWS::AutoScaling::AutoScalingGroup'
+    Properties:
+      AutoScalingGroupName: !Sub '${AWS::StackName}-asg'    
+      Cooldown: '60'
+      DesiredCapacity: '3'
+      HealthCheckType: EC2
+      LaunchConfigurationName: !Ref LaunchConfiguration
+      MinSize: '3'
+      MaxSize: '5'
+      TargetGroupARNs:
+        - !Ref loadBalancerTargetGroup
+      TerminationPolicies:
+        - Default
+      VPCZoneIdentifier:
+        - !Ref myPublicSubnet1
+        - !Ref myPublicSubnet2
+        - !Ref myPublicSubnet3
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-asg'
+          PropagateAtLaunch: true
+        - Key: Application
+          Value: WebApp
+          PropagateAtLaunch: true
+
+#Autoscaling scale up policy:          
+  applicationScaleUpPolicy:
+    Type: 'AWS::AutoScaling::ScalingPolicy'
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref autoScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: '1'
+
+#Autoscaling scale down policy:      
+  applicationScaleDownPolicy:
+    Type: 'AWS::AutoScaling::ScalingPolicy'
+    Properties:
+      AdjustmentType: ChangeInCapacity
+      AutoScalingGroupName: !Ref autoScalingGroup
+      Cooldown: '60'
+      ScalingAdjustment: '-1'
+
+ #CPU utilization for above policy to trigger for Scaling up:
+  CpuUtilisationForScaleUp:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: Scale-up if CPU > 5% for 2 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '60'
+      EvaluationPeriods: '2'
+      Threshold: '5'
+      AlarmActions:
+        - !Ref applicationScaleUpPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref autoScalingGroup
+      ComparisonOperator: GreaterThanThreshold
+
+#CPU utilization for above policy to trigger for Scaling down:
+  CpuUtilisationForScaleDown:
+    Type: 'AWS::CloudWatch::Alarm'
+    Properties:
+      AlarmDescription: Scale-down if CPU < 3% for 2 minutes
+      MetricName: CPUUtilization
+      Namespace: AWS/EC2
+      Statistic: Average
+      Period: '60'
+      EvaluationPeriods: '2'
+      Threshold: '3'
+      AlarmActions:
+        - !Ref applicationScaleDownPolicy
+      Dimensions:
+        - Name: AutoScalingGroupName
+          Value: !Ref autoScalingGroup
+      ComparisonOperator: LessThanThreshold
+
+#DNS record set
+  DnsRecordSet:
+    Type: 'AWS::Route53::RecordSet'
+    Properties:
+      Name: !Ref domainName
+      Type: A
+      HostedZoneId: !Ref hostedZoneId
+      AliasTarget:
+        DNSName: !GetAtt 
+          - loadBalancer
+          - DNSName
+        EvaluateTargetHealth: false
+        HostedZoneId: !GetAtt 
+          - loadBalancer
+          - CanonicalHostedZoneID
