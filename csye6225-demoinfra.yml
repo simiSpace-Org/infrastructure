@@ -223,7 +223,6 @@ Resources:
       Tags:
         - Key: Name
           Value: !Ref AWS::StackName
-
 #Associate Private route tables with subnets
   myPrivateSubnet1RouteTableAssociation:
     Type: AWS::EC2::SubnetRouteTableAssociation
