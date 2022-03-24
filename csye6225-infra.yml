@@ -407,9 +407,7 @@ Resources:
           sudo echo 'AWS_SECRET_KEY=${awssecretkey}' >> /tmp/webservice/.env
           sudo echo 'USERNAME=${dbusername}' >> /tmp/webservice/.env
           sudo echo 'PASSWORD=${dbpassword}' >> /tmp/webservice/.env
-          sudo echo 'HOSTNAME=${myRdsInstance.Endpoint.Address}' >> /tmp/webservice/.env
-
-              
+          sudo echo 'HOSTNAME=${myRdsInstance.Endpoint.Address}' >> /tmp/webservice/.env              
         
         
   
