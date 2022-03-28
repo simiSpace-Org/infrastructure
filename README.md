@@ -18,28 +18,24 @@ export AWS_REGION=us-east-1
 
 # AWS CLI stack commands
 ## create stack
-aws cloudformation create-stack --stack-name demo1-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json
+aws cloudformation create-stack --stack-name demo5-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json
+aws cloudformation create-stack --stack-name demo5-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json --capabilities CAPABILITY_NAMED_IAM
+
+aws cloudformation create-stack --stack-name demo5-vpc7 --template-body file://demo.yml --parameters file://parameter.json
 
 ## update stack 
-aws cloudformation update-stack --stack-name demo1-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json
+aws cloudformation update-stack --stack-name demo5-vpc9 --template-body file://csye6225-infra.yml --parameters file://parameter.json
 
 ## delete-stack
 aws cloudformation delete-stack --stack-name demo1-vpc737 
 
-# Packer Commands
-
-export PACKER_LOG=1
-
-```
-//go to folder location of packer and run the following commands
-cd Desktop/demoadd3/infrastructure/packer 
-packer build -var-file='dev_vars.json' ami.json
-
-# Validate packer
-    ./packer validate ami.json
-
-```
 # To go into EC2 
 ssh -i "simis_cloud.pem" ec2-user@ec2-44-199-234-165.compute-1.amazonaws.com
 
 
+/Users/seeminvasaikar/Desktop/demo4/infrastructure-main/csye6225-infra.yml
+
+      
+
+
+/Users/seeminvasaikar/Desktop/demo4/infrastructure-main/parameter.json      
