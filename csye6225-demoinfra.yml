@@ -35,7 +35,7 @@ Parameters:
   ami:
     Description: "ami ID"
     Type: String
-    Default: "ami-014c95e180435ea76"
+    Default: "ami-030cec09f41c19bcb"
   bucketLastName:
     Description: "bucket name"
     Type: String
@@ -44,14 +44,6 @@ Parameters:
     Description: "aws region"
     Type: String
     Default: "us-east-1"
-  awsaccesskey:
-    Description: "aws access key"
-    Type: String
-    Default: "AKIA5J3IFYVK5ZF4MPMH"
-  awssecretkey:
-    Description: "aws secret key"
-    Type: String
-    Default: "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"
   DatabaseUser:
     Description: "db username"
     Type: String
@@ -87,11 +79,11 @@ Parameters:
   domainName:
     Description: "domainName"
     Type: String
-    Default: "dev.simiicodes.me"
+    Default: "demo.simiicodes.me"
   hostedZoneId:
     Description: "hostedZoneId"
     Type: String
-    Default: "Z08520651XJMY4OXUZ4FP"    
+    Default: "Z0857168IE1RWQN312V5"    
 
 Resources:
   myVPC:
@@ -352,6 +344,7 @@ Resources:
               - TransitionInDays: 90
                 StorageClass: GLACIER
             ExpirationInDays: 365
+
 #RDS DB Subnet Group
   dBSubnetGroup:
     Type: AWS::RDS::DBSubnetGroup
@@ -559,7 +552,7 @@ Resources:
       ImageId: !Ref ami
       SecurityGroups:
         - !Ref ApplicationSecurityGroup
-      KeyName: !Ref devkeypair
+      KeyName: !Ref demokeypair
       BlockDeviceMappings:
         - DeviceName: /dev/xvda
           Ebs:
@@ -635,7 +628,7 @@ Resources:
           Value: !Sub '${AWS::StackName}-asg'
           PropagateAtLaunch: true
         - Key: Application
-          Value: WebApp
+          Value: SimisWebservice
           PropagateAtLaunch: true
 
 #Autoscaling scale up policy:          
@@ -705,3 +698,37 @@ Resources:
         HostedZoneId: !GetAtt 
           - loadBalancer
           - CanonicalHostedZoneID
+
+  CodeDeployApplication:
+    Type: AWS::CodeDeploy::Application
+    Properties:
+      ApplicationName: "csye6225-webapp"
+      ComputePlatform: "Server"
+      Tags:
+        - Key: Name
+          Value: !Sub '${AWS::StackName}-codedeploy-app'
+
+#codeDeployment 
+  CodeDeploymentGroup:
+    Type: AWS::CodeDeploy::DeploymentGroup
+    DependsOn:
+      - CodeDeployApplication
+      - autoScalingGroup
+    Properties:
+      DeploymentGroupName: "csye6225-webapp-deployment"
+      ApplicationName: "csye6225-webapp"
+      DeploymentStyle:
+        DeploymentOption: "WITHOUT_TRAFFIC_CONTROL"
+        DeploymentType: "IN_PLACE"
+      DeploymentConfigName: "CodeDeployDefault.AllAtOnce"
+      AutoScalingGroups: 
+        - !Sub '${AWS::StackName}-asg'
+      AutoRollbackConfiguration:
+        Enabled: true
+        Events:
+          - "DEPLOYMENT_FAILURE"
+      Ec2TagFilters: 
+        - Key: "Name"
+          Type: "KEY_AND_VALUE"
+          Value: !Sub '${AWS::StackName}-asg'
+      ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
