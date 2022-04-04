@@ -1,20 +1,19 @@
 AWSTemplateFormatVersion: "2010-09-09"
 Description: Cloud Formation with 4 policies, 2 roles and 1 profile
 Parameters:
-  S3CodeDeployBucket:
+  CodeDeployBucketName:
     Type: String
-    Default: "simiiscodedeploydemo"
-  GitHubUser: 
+    Default: "demo.simiicodes.me"
+  GHActionsUser: 
     Type: String
     Default: "ghactions-app"
-
 Resources:
   # upload from github actions to s3
   GHUploadToS3Policy:
     Type: AWS::IAM::Policy
     Properties:
       Users:
-        - !Ref GitHubUser
+        - "ghactions-app"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -24,16 +23,15 @@ Resources:
               - "s3:List*"
               - "s3:PutObject"
             Resource:
-              - !Sub 'arn:aws:s3:::${S3CodeDeployBucket}/'
-              - !Sub 'arn:aws:s3:::${S3CodeDeployBucket}/*'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
       PolicyName: "GHUploadToS3"
-
   # github codedeploy policy for GA to call CodeDeploy
   GHCodeDeploy:
     Type: AWS::IAM::Policy
     Properties:
       Users:
-        - !Ref GitHubUser
+        - "ghactions-app"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -57,12 +55,11 @@ Resources:
               - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentconfig:CodeDeployDefault.HalfAtATime'
               - !Sub 'arn:aws:codedeploy:${AWS::Region}:${AWS::AccountId}:deploymentconfig:CodeDeployDefault.AllAtOnce'
       PolicyName: "GHCodeDeploy"
-
   GHEC2Ami:
     Type: AWS::IAM::Policy
     Properties:
       Users:
-        - !Ref GitHubUser
+        - "ghactions-app"
       PolicyDocument:
         Version: "2012-10-17"
         Statement:
@@ -104,7 +101,6 @@ Resources:
             Resource:
               - "*"
       PolicyName: "GHEC2Ami"
-      
   # codedeploy ec2 s3 policy
   CodeDeployEC2S3Policy:
     Type: AWS::IAM::Policy
@@ -117,14 +113,13 @@ Resources:
               - "s3:Get*"
               - "s3:List*"
             Resource:
-              - !Sub 'arn:aws:s3:::${S3CodeDeployBucket}/'
-              - !Sub 'arn:aws:s3:::${S3CodeDeployBucket}/*'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
+              - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
       PolicyName: "CodeDeployEC2S3"
       Roles:
-        - !Ref myCodeDeployEC2ServiceRole
-
-# Service Role to perfom GH actions 
-  myCodeDeployEC2ServiceRole:
+        - !Ref myCDEC2ServiceRole
+  # create code deploy service-role for ec2 instance to host the web application
+  myCDEC2ServiceRole:
     Type: AWS::IAM::Role
     Properties:
       AssumeRolePolicyDocument:
@@ -137,14 +132,15 @@ Resources:
             Action:
               - 'sts:AssumeRole'
       Path: /
-      RoleName: myCodeDeployEC2ServiceRole
-
-  myCodeDeployEC2ServiceRole:
+      RoleName: myCDEC2ServiceRole
+  # create codedeploy instance profile and attach it to ec2
+  # can directly add it in cyse6225-infa as well using ManagedPolicyArns
+  EC2IAMProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       InstanceProfileName: CodeDeployEC2Profile
       Roles:
-        - !Ref myCodeDeployEC2ServiceRole
+        - !Ref myCDEC2ServiceRole
 # create service role for codedeploy
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
@@ -158,7 +154,7 @@ Resources:
                 - codedeploy.amazonaws.com
             Action:
               - 'sts:AssumeRole'
-      RoleName: CodeDeployServiceRole        
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole'
-      
+      RoleName: CodeDeployServiceRole
+  
