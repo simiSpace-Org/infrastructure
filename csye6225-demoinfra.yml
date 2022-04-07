@@ -744,3 +744,21 @@ Resources:
           Type: "KEY_AND_VALUE"
           Value: !Sub '${AWS::StackName}-asg'
       ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
+
+#cloudwatch logs
+  CWLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: csye6225-spring2022
+      RetentionInDays: 5
+      Tags: 
+        - Name : Name
+          Value: "CWLogGroup"
+
+  CWLogStream:
+    Type: AWS::Logs::LogStream
+    DependsOn: CWLogGroup
+    Properties:
+    LogGroupName: "csye6225-spring2022"
+    LogStreamName: "webapp"
+          
