@@ -35,7 +35,7 @@ Parameters:
   ami:
     Description: "ami ID"
     Type: String
-    Default: "ami-030cec09f41c19bcb"
+    Default: "ami-066e73e1fc193f999"
   bucketLastName:
     Description: "bucket name"
     Type: String
@@ -183,7 +183,7 @@ Resources:
       VpcId: !Ref myVPC
       AvailabilityZone: !Select [0, !GetAZs ""]
       CidrBlock: !Ref PrivateSubnet1CIDR
-      MapPublicIpOnLaunch: false
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Private Subnet 1
@@ -193,7 +193,7 @@ Resources:
       VpcId: !Ref myVPC
       AvailabilityZone: !Select [1, !GetAZs ""]
       CidrBlock: !Ref PrivateSubnet2CIDR
-      MapPublicIpOnLaunch: false
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Private Subnet 2
@@ -203,7 +203,7 @@ Resources:
       VpcId: !Ref myVPC
       AvailabilityZone: !Select [2, !GetAZs ""]
       CidrBlock: !Ref PrivateSubnet3CIDR
-      MapPublicIpOnLaunch: false
+      MapPublicIpOnLaunch: true
       Tags:
         - Key: Name
           Value: Private Subnet 3
@@ -409,14 +409,14 @@ Resources:
 
   # Create IAM Role Profile
   RoleInstanceProfile:
-    Type: "AWS::IAM::InstanceProfile"
+    Type: AWS::IAM::InstanceProfile
     Properties:
       Roles:
         - !Ref CreateIAMRole
 
   # Create IAM Policy
   CreatePolicy:
-    Type: "AWS::IAM::Policy"
+    Type: AWS::IAM::Policy
     Properties:
       PolicyName: !Ref IAMPolicyName
       PolicyDocument:
@@ -430,6 +430,9 @@ Resources:
             Resource:
               - !Join ["", ["arn:aws:s3:::", !Ref S3Bucket]]
               - !Join ["", ["arn:aws:s3:::", !Ref S3Bucket, "/*"]]
+              - !Join ["", ["arn:aws:s3:::", !Ref S3Bucket]]
+              - !Join ["", ["arn:aws:s3:::", !Ref S3Bucket, "/*"]]
+
       Roles:
         - !Ref CreateIAMRole
 
@@ -548,7 +551,8 @@ Resources:
       PlacementTenancy: default
       InstanceType: t2.micro
       AssociatePublicIpAddress: true
-      IamInstanceProfile: !Ref RoleInstanceProfile
+      IamInstanceProfile: 
+        Name: CodeDeployEC2Profile       
       ImageId: !Ref ami
       SecurityGroups:
         - !Ref ApplicationSecurityGroup
@@ -569,6 +573,13 @@ Resources:
             touch reloadenv.sh
             cat > /var/lib/cloud/scripts/per-boot/reloadenv.sh << 'EOF'
             sudo pm2 reload all --update-env
+            sudo yum -y install ruby
+            sudo yum install wget
+            cd /home/ec2-user
+            wget https://simiiscodedeploydemo.s3.us-east-1.amazonaws.com/latest/install
+            chmod +x ./install
+            sudo ./install auto
+            sudo service codedeploy-agent start            
             EOF
             cat > /etc/environment << 'EOF'
             DB_USERNAME=${DatabaseUser}
@@ -590,8 +601,9 @@ Resources:
               AWS_BUCKET_NAME: !Ref S3Bucket,
               HostName: !GetAtt myRdsInstance.Endpoint.Address,
               PortNo: !Ref PostGresPortNo,
-              AWS_BUCKET_REGION: !Ref BucketRegion,
+              AWS_BUCKET_REGION: !Ref BucketRegion
             }
+ 
 #Auto Scaling 
   autoScalingGroup:
     Type: 'AWS::AutoScaling::AutoScalingGroup'
@@ -732,3 +744,21 @@ Resources:
           Type: "KEY_AND_VALUE"
           Value: !Sub '${AWS::StackName}-asg'
       ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
+
+#cloudwatch logs
+  CWLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties: 
+      LogGroupName: csye6225-spring2022
+      RetentionInDays: 5
+      Tags: 
+        - Name : Name
+          Value: "CWLogGroup"
+
+  CWLogStream:
+    Type: AWS::Logs::LogStream
+    DependsOn: CWLogGroup
+    Properties:
+    LogGroupName: "csye6225-spring2022"
+    LogStreamName: "webapp"
+          
