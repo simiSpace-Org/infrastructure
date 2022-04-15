@@ -1,0 +1,120 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: Cloud Formation for Lambda and SNS permissions
+Parameters:
+  LambdaBucketName:
+    Type: String
+    Default: "similambdabucket"
+
+Resources:
+  MySNSTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: "MySNSTopic"
+
+  myLambdaRole:
+    Type: "AWS::IAM::Role"
+    Properties: 
+      RoleName: "myLambdaRole"
+      AssumeRolePolicyDocument: 
+        Version: "2012-10-17"
+        Statement: 
+          - 
+            Effect: "Allow"
+            Principal: 
+              Service: 
+                - "lambda.amazonaws.com"
+            Action: 
+              - "sts:AssumeRole"
+      Path: "/"
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+ 
+  LambdaFunction:
+    Type: AWS::Lambda::Function
+    Properties:
+      Description: "Lambda function to send verification email"
+      Runtime: nodejs12.x
+      Role: !GetAtt myLambdaRole.Arn
+      Handler: index.handler
+      FunctionName: 'verify_email'
+      Code:
+        S3Bucket: !Ref LambdaBucketName
+        S3Key: 'lambda_function.zip'
+    
+  LambdaSESDynamoPolicy:
+    Type: 'AWS::IAM::Policy'
+    Properties:
+      PolicyName: "Lambda-Policy-For-SES-Dynamo"
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action: 
+              - logs:CreateLogGroup
+            Resource:
+              - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:*
+          - Effect: Allow
+            Action: 
+              - logs:CreateLogStream
+              - logs:PutLogEvents
+            Resource:
+              - !Sub arn:aws:logs:${AWS::Region}:${AWS::AccountId}:log-group:/aws/lambda/${LambdaFunction}:*
+          - Sid: LambdaDynamoDBAccess
+            Effect: Allow
+            Action: 
+              - dynamodb:GetItem
+              - dynamodb:PutItem
+              - dynamodb:UpdateItem
+              - dynamodb:Scan
+              - dynamodb:DeleteItem
+            Resource: !Sub arn:aws:dynamodb:${AWS::Region}:${AWS::AccountId}:table/dynamodb-table
+          - Sid: LambdaSESAccess
+            Effect: Allow
+            Action: 
+              - ses:VerifyEmailAddress
+              - ses:SendEmail
+              - ses:SendRawEmail
+            Resource: "*"
+      Roles: 
+        - !Ref myLambdaRole
+
+  SNSTopicPolicy:
+    Type: AWS::SNS::TopicPolicy
+    Properties: 
+      PolicyDocument: 
+          Version: '2012-10-17'
+          Statement: 
+            - Sid: AllowAWS
+              Effect: Allow
+              Principal:
+                AWS: '*'
+              Action: 
+                - SNS:Subscribe
+                - SNS:SetTopicAttributes
+                - SNS:RemovePermission
+                - SNS:Receive
+                - SNS:Publish
+                - SNS:ListSubscriptionsByTopic
+                - SNS:GetTopicAttributes
+                - SNS:DeleteTopic
+                - SNS:AddPermission
+              Resource:
+                - !Ref MySNSTopic
+      Topics: 
+        - !Ref MySNSTopic
+  
+  SNSLambdaPermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt LambdaFunction.Arn
+      Action: lambda:InvokeFunction
+      Principal: sns.amazonaws.com
+      SourceAccount: !Ref 'AWS::AccountId'
+      SourceArn: !Ref MySNSTopic
+
+  MySubscription:
+    Type: AWS::SNS::Subscription
+    Properties:
+      Endpoint: !GetAtt LambdaFunction.Arn
+      Protocol: lambda
+      TopicArn: !Ref MySNSTopic
