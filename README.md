@@ -1,8 +1,5 @@
 # Infrastructure
 
-# Check if valid yaml file 
-http://www.yamllint.com/
-
 # AWS Cloud Formation cloudformation Profile
 
 aws configure --profile=dev
@@ -17,7 +14,6 @@ export AWS_REGION=us-east-1
 # AWS : SSL Command : 
 aws acm import-certificate --certificate fileb://yourcerti.crt --certificate-chain fileb://yourbundle.ca-bundle --private-key fileb://yourkey.pem
 
-/Users/seeminvasaikar/Downloads/infrastructure-assign9/csye6225-demoinfra.yml
 
 # AWS : Networking
 
@@ -25,22 +21,3 @@ aws acm import-certificate --certificate fileb://yourcerti.crt --certificate-cha
 ## create stack
 aws cloudformation create-stack --stack-name demo5-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json
 aws cloudformation create-stack --stack-name demo5-vpc737 --template-body file://csye6225-infra.yml --parameters file://parameter.json --capabilities CAPABILITY_NAMED_IAM
-
-aws cloudformation create-stack --stack-name demo5-vpc7 --template-body file://demo.yml --parameters file://parameter.json
-
-## update stack 
-aws cloudformation update-stack --stack-name demo5-vpc9 --template-body file://csye6225-infra.yml --parameters file://parameter.json
-
-## delete-stack
-aws cloudformation delete-stack --stack-name demo1-vpc737 
-
-# To go into EC2 
-ssh -i "simis_cloud.pem" ec2-user@ec2-44-199-234-165.compute-1.amazonaws.com
-
-
-/Users/seeminvasaikar/Desktop/demo4/infrastructure-main/csye6225-infra.yml
-
-      
-
-
-/Users/seeminvasaikar/Desktop/demo4/infrastructure-main/parameter.json      
