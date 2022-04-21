@@ -83,7 +83,12 @@ Parameters:
   hostedZoneId:
     Description: "hostedZoneId"
     Type: String
-    Default: "Z0857168IE1RWQN312V5"    
+    Default: "Z0857168IE1RWQN312V5"   
+  SSLcerti:
+    Description: "SSL Certification"
+    Type: String
+    Default: ""    
+
 
 Resources:
   myVPC:
@@ -369,6 +374,8 @@ Resources:
     Type: AWS::RDS::DBInstance
     DeletionPolicy: Delete
     Properties:
+      StorageEncrypted: true
+      KmsKeyId: !Ref  KeyforRDS
       AllocatedStorage: "20"
       DBParameterGroupName: !Ref RDSDBParameterGroup
       Engine: postgres
@@ -437,63 +444,69 @@ Resources:
         - !Ref CreateIAMRole
 
 #Create EC2 Instance
-  # MyEC2Instance1:
-  #   Type: AWS::EC2::Instance
-  #   Properties:
-  #     IamInstanceProfile: !Ref RoleInstanceProfile
-  #     ImageId: !Ref ami
-  #     KeyName: "demo_keypair"
-  #     InstanceType: "t2.micro"
-  #     Tags:
-  #       - Key: Name
-  #         Value: "Simi_AMI"
-  #     BlockDeviceMappings:
-  #       - DeviceName: "/dev/sdm"
-  #         Ebs:
-  #           VolumeType: "io1"
-  #           Iops: "200"
-  #           DeleteOnTermination: "false"
-  #           VolumeSize: "20"
-  #       - DeviceName: "/dev/sdk"
-  #         NoDevice: {}
-  #     SecurityGroupIds:
-  #       - !Ref ApplicationSecurityGroup
-  #     SubnetId: !Ref myPublicSubnet1
-  #     UserData:
-  #       Fn::Base64: !Sub
-  #         - |
-  #           #!/bin/bash
-  #           sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
-  #           cd /var/lib/cloud/scripts/per-boot/
-  #           touch reloadenv.sh
-  #           cat > /var/lib/cloud/scripts/per-boot/reloadenv.sh << 'EOF'
-  #           sudo pm2 reload all --update-env
-  #           EOF
-  #           cat > /etc/environment << 'EOF'
-  #           DB_USERNAME=${DatabaseUser}
-  #           DB_NAME=${DatabaseName}
-  #           DB_PASSWORD=${DatabasePassword}
-  #           DB_HOSTNAME=${HostName}
-  #           AWS_BUCKET_NAME=${S3Bucket}
-  #           PORT=${PortNo}
-  #           AWS_BUCKET_REGION=${BucketRegion}
-  #           AWS_ACCESS_KEY=${awsaccesskey},
-  #           AWS_SECRET_KEY=${awssecretkey}
-  #           EOF
-  #           source /etc/profile
-  #           sudo systemctl enable nodeapp
-  #           sudo systemctl start nodeapp
-  #           sudo pm2 reload all --update-env
-  #         - {
-  #             DatabaseName: !Ref DatabaseName,
-  #             DatabaseUser: !Ref DatabaseUser,
-  #             DatabasePassword: !Ref DatabasePassword,
-  #             AWS_BUCKET_NAME: !Ref S3Bucket,
-  #             HostName: !GetAtt myRdsInstance.Endpoint.Address,
-  #             PortNo: !Ref PostGresPortNo,
-  #             AWS_BUCKET_REGION: !Ref BucketRegion,
-  #           }
+  MyEC2Instance1:
+    Type: AWS::EC2::Instance
+    Properties:
+      IamInstanceProfile: !Ref RoleInstanceProfile
+      ImageId: !Ref ami
+      KeyName: !Ref demokeypair
+      InstanceType: "t2.micro"
+      Tags:
+        - Key: Name
+          Value: "Simi_AMI"
+      BlockDeviceMappings:
+        - DeviceName: "/dev/sdm"
+          Ebs:
+            VolumeType: "io1"
+            Iops: "200"
+            DeleteOnTermination: "false"
+            VolumeSize: "20"
+        - DeviceName: "/dev/sdk"
+          NoDevice: {}
+      SecurityGroupIds:
+        - !Ref ApplicationSecurityGroup
+      SubnetId: !Ref myPublicSubnet1
+      UserData:
+        Fn::Base64: !Sub
+          - |
+            #!/bin/bash
+            sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+            cd /var/lib/cloud/scripts/per-boot/
+            touch reloadenv.sh
+            cat > /var/lib/cloud/scripts/per-boot/reloadenv.sh << 'EOF'
+            sudo pm2 reload all --update-env
+            sudo yum -y install ruby
+            sudo yum install wget
+            cd /home/ec2-user
+            wget https://simiiscodedeploydemo.s3.us-east-1.amazonaws.com/latest/install
+            chmod +x ./install
+            sudo ./install auto
+            sudo service codedeploy-agent start            
+            EOF
+            cat > /etc/environment << 'EOF'
+            DB_USERNAME=${DatabaseUser}
+            DB_NAME=${DatabaseName}
+            DB_PASSWORD=${DatabasePassword}
+            DB_HOSTNAME=${HostName}
+            AWS_BUCKET_NAME=${S3Bucket}
+            PORT=${PortNo}
+            AWS_BUCKET_REGION=${BucketRegion}
+            EOF
+            source /etc/profile
+            sudo systemctl enable nodeapp
+            sudo systemctl start nodeapp
+            sudo pm2 reload all --update-env
+          - {
+              DatabaseName: !Ref DatabaseName,
+              DatabaseUser: !Ref DatabaseUser,
+              DatabasePassword: !Ref DatabasePassword,
+              AWS_BUCKET_NAME: !Ref S3Bucket,
+              HostName: !GetAtt myRdsInstance.Endpoint.Address,
+              PortNo: !Ref PostGresPortNo,
+              AWS_BUCKET_REGION: !Ref BucketRegion
+            }
   
+
 #Load Balancers 
   loadBalancer:
     Type: 'AWS::ElasticLoadBalancingV2::LoadBalancer'
@@ -537,34 +550,36 @@ Resources:
   loadBalancerListener:
     Type: 'AWS::ElasticLoadBalancingV2::Listener'
     Properties:
+      Certificates:
+          - CertificateArn: !Ref SSLcerti
       DefaultActions:
         - Type: forward
           TargetGroupArn: !Ref loadBalancerTargetGroup
       LoadBalancerArn: !Ref loadBalancer
-      Port: 80
-      Protocol: HTTP
-#creating the Launch Configuration:
-  LaunchConfiguration:
-    Type: 'AWS::AutoScaling::LaunchConfiguration'
+      Port: 443
+      Protocol: HTTPS
+
+  myLaunchTemplate:
+    Type: AWS::EC2::LaunchTemplate
     Properties:
-      LaunchConfigurationName: asg_launch_config
-      PlacementTenancy: default
-      InstanceType: t2.micro
-      AssociatePublicIpAddress: true
-      IamInstanceProfile: 
-        Name: CodeDeployEC2Profile       
-      ImageId: !Ref ami
-      SecurityGroups:
-        - !Ref ApplicationSecurityGroup
-      KeyName: !Ref demokeypair
-      BlockDeviceMappings:
-        - DeviceName: /dev/xvda
+      LaunchTemplateName: !Sub '${AWS::StackName}-launch-template'
+      LaunchTemplateData:
+        IamInstanceProfile:
+          Name: CodeDeployEC2Profile 
+        BlockDeviceMappings:
+        - DeviceName: /dev/xvda   # check if sda1
           Ebs:
-            VolumeType: gp2
+            Encrypted: true
+            VolumeSize: 20
+            VolumeType: "gp2"    # check if gp3
             DeleteOnTermination: true
-            VolumeSize: '20'
-      EbsOptimized: false
-      UserData:
+        ImageId: !Ref ami
+        InstanceType: t2.micro
+        KeyName: !Ref demokeypair
+        DisableApiTermination : "false"
+        SecurityGroupIds:
+          - !Ref ApplicationSecurityGroup
+        UserData:
         Fn::Base64: !Sub
           - |
             #!/bin/bash
@@ -603,6 +618,68 @@ Resources:
               PortNo: !Ref PostGresPortNo,
               AWS_BUCKET_REGION: !Ref BucketRegion
             }
+
+# #creating the Launch Configuration:
+#   LaunchConfiguration:
+#     Type: 'AWS::AutoScaling::LaunchConfiguration'
+#     Properties:
+#       LaunchConfigurationName: asg_launch_config
+#       PlacementTenancy: default
+#       InstanceType: t2.micro
+#       AssociatePublicIpAddress: true
+#       IamInstanceProfile: 
+#         Name: CodeDeployEC2Profile       
+#       ImageId: !Ref ami
+#       SecurityGroups:
+#         - !Ref ApplicationSecurityGroup
+#       KeyName: !Ref demokeypair
+#       BlockDeviceMappings:
+#         - DeviceName: /dev/xvda
+#           Ebs:
+#             Encrypted: true
+#             VolumeType: gp2
+#             DeleteOnTermination: true
+#             VolumeSize: '20'
+#       EbsOptimized: false
+#       UserData:
+#         Fn::Base64: !Sub
+#           - |
+#             #!/bin/bash
+#             sed -i '/scripts-user/c\ - [scripts-user, always]' /etc/cloud/cloud.cfg
+#             cd /var/lib/cloud/scripts/per-boot/
+#             touch reloadenv.sh
+#             cat > /var/lib/cloud/scripts/per-boot/reloadenv.sh << 'EOF'
+#             sudo pm2 reload all --update-env
+#             sudo yum -y install ruby
+#             sudo yum install wget
+#             cd /home/ec2-user
+#             wget https://simiiscodedeploydemo.s3.us-east-1.amazonaws.com/latest/install
+#             chmod +x ./install
+#             sudo ./install auto
+#             sudo service codedeploy-agent start            
+#             EOF
+#             cat > /etc/environment << 'EOF'
+#             DB_USERNAME=${DatabaseUser}
+#             DB_NAME=${DatabaseName}
+#             DB_PASSWORD=${DatabasePassword}
+#             DB_HOSTNAME=${HostName}
+#             AWS_BUCKET_NAME=${S3Bucket}
+#             PORT=${PortNo}
+#             AWS_BUCKET_REGION=${BucketRegion}
+#             EOF
+#             source /etc/profile
+#             sudo systemctl enable nodeapp
+#             sudo systemctl start nodeapp
+#             sudo pm2 reload all --update-env
+#           - {
+#               DatabaseName: !Ref DatabaseName,
+#               DatabaseUser: !Ref DatabaseUser,
+#               DatabasePassword: !Ref DatabasePassword,
+#               AWS_BUCKET_NAME: !Ref S3Bucket,
+#               HostName: !GetAtt myRdsInstance.Endpoint.Address,
+#               PortNo: !Ref PostGresPortNo,
+#               AWS_BUCKET_REGION: !Ref BucketRegion
+#             }
  
 #Auto Scaling 
   autoScalingGroup:
@@ -610,15 +687,17 @@ Resources:
     Properties:
       AutoScalingGroupName: !Sub '${AWS::StackName}-asg'    
       Cooldown: '60'
-      DesiredCapacity: '3'
+      DesiredCapacity: '1'
       HealthCheckType: EC2
       AvailabilityZones:
         - us-east-1a
         - us-east-1b
         - us-east-1c      
-      LaunchConfigurationName: !Ref LaunchConfiguration
-      MinSize: '3'
-      MaxSize: '5'
+      LaunchTemplate:
+        LaunchTemplateId: !Ref myLaunchTemplate
+        Version: !GetAtt myLaunchTemplate.LatestVersionNumber
+      MinSize: '1'
+      MaxSize: '1'
       MetricsCollection:
         - Granularity: 1Minute
           Metrics:
@@ -744,3 +823,61 @@ Resources:
           Type: "KEY_AND_VALUE"
           Value: !Sub '${AWS::StackName}-asg'
       ServiceRoleArn: !Sub 'arn:aws:iam::${AWS::AccountId}:role/CodeDeployServiceRole'
+
+  EBSKey:
+    Type: "AWS::KMS::Key"
+    Properties:
+      Description: EBS Key for Volume 
+      PendingWindowInDays: 10
+      KeyPolicy:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: "Root Access KEy"
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub "arn:aws:iam::${AWS::AccountId}:root"
+            Action: "kms:*"
+            Resource: "*"
+          - Sid: "AutoScaling"
+            Effect: Allow
+            Principal:
+              AWS:
+                - !Sub >-
+                  arn:aws:iam::${AWS::AccountId}:role/aws-service-role/autoscaling.amazonaws.com/AWSServiceRoleForAutoScaling
+            Action:
+              - "kms:Create*"
+              - "kms:Describe*"
+              - "kms:Enable*"
+              - "kms:List*"
+              - "kms:Put*"
+              - "kms:Update*"
+              - "kms:Revoke*"
+              - "kms:Disable*"
+              - "kms:Get*"
+              - "kms:Delete*"
+              - "kms:TagResource"
+              - "kms:UntagResource"
+              - "kms:ScheduleKeyDeletion"
+              - "kms:CancelKeyDeletion"
+            Resource: "*"    
+
+  KeyforRDS:
+    Type: AWS::KMS::Key
+    Properties:
+      Description: RDS KMS key
+      PendingWindowInDays: 10
+      KeyPolicy:
+        Version: "2012-10-17"
+        Id: database-rds
+        Statement:
+          - Sid: Root Permissions
+            Effect: Allow
+            Principal:
+              AWS: !Join
+                - ""
+                - - "arn:aws:iam::"
+                  - !Ref "AWS::AccountId"
+                  - ":root"
+            Action: "kms:*"
+            Resource: "*"              

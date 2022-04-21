@@ -14,6 +14,11 @@ export AWS_PROFILE=demo
 # Change Regions
 export AWS_REGION=us-east-1
 
+# AWS : SSL Command : 
+aws acm import-certificate --certificate fileb://yourcerti.crt --certificate-chain fileb://yourbundle.ca-bundle --private-key fileb://yourkey.pem
+
+/Users/seeminvasaikar/Downloads/infrastructure-assign9/csye6225-demoinfra.yml
+
 # AWS : Networking
 
 # AWS CLI stack commands
