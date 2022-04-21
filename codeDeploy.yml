@@ -101,7 +101,7 @@ Resources:
             Resource:
               - "*"
       PolicyName: "GHEC2Ami"
-  # codedeploy ec2 s3 policy
+
   CodeDeployEC2S3Policy:
     Type: AWS::IAM::Policy
     Properties:
@@ -115,10 +115,11 @@ Resources:
             Resource:
               - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/'
               - !Sub 'arn:aws:s3:::${CodeDeployBucketName}/*'
+
       PolicyName: "CodeDeployEC2S3"
       Roles:
         - !Ref myCDEC2ServiceRole
-  # create code deploy service-role for ec2 instance to host the web application
+
   myCDEC2ServiceRole:
     Type: AWS::IAM::Role
     Properties:
@@ -133,14 +134,16 @@ Resources:
               - 'sts:AssumeRole'
       Path: /
       RoleName: myCDEC2ServiceRole
-  # create codedeploy instance profile and attach it to ec2
-  # can directly add it in cyse6225-infa as well using ManagedPolicyArns
+
+#Role with Policies to perform code deploy and cloud watch actions; attached to autoscaling group      
   EC2IAMProfile:
     Type: AWS::IAM::InstanceProfile
     Properties:
       InstanceProfileName: CodeDeployEC2Profile
       Roles:
         - !Ref myCDEC2ServiceRole
+        - !Ref CloudWatchAgentRole
+
 # create service role for codedeploy
   CodeDeployServiceRole:
     Type: AWS::IAM::Role
@@ -157,4 +160,22 @@ Resources:
       ManagedPolicyArns:
         - 'arn:aws:iam::aws:policy/service-role/AWSCodeDeployRole'
       RoleName: CodeDeployServiceRole
-  
+
+# cloudwatch agent role      
+  CloudWatchAgentRole:
+    Type: AWS::IAM::Role
+    Properties:
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - ec2.amazonaws.com
+            Action:
+              - 'sts:AssumeRole'
+      ManagedPolicyArns:
+        - 'arn:aws:iam::aws:policy/CloudWatchAgentServerPolicy'
+      RoleName: CloudWatchAgentRole
+
+
